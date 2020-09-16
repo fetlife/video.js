@@ -43084,21 +43084,14 @@ var MasterPlaylistController = function (_videojs$EventTarget) {
     value: function fastQualityChange_() {
       var _this4 = this;
 
-      var media = this.selectPlaylist();
-
-      if (media === this.masterPlaylistLoader_.media()) {
-        return;
-      } // Delete all buffered data to allow an immediate quality switch, then seek to give
+      var media = this.selectPlaylist(); // Delete all buffered data to allow an immediate quality switch, then seek to give
       // the browser a kick to remove any cached frames from the previous rendtion (.04 seconds
       // ahead is roughly the minimum that will accomplish this across a variety of content
       // in IE and Edge, but seeking in place is sufficient on all other browsers)
       // Edge/IE bug: https://developer.microsoft.com/en-us/microsoft-edge/platform/issues/14600375/
       // Chrome bug: https://bugs.chromium.org/p/chromium/issues/detail?id=651904
-      // We need to execute this after the new playlist is loaded, as we want to avoid racing
-      // conditions with `this.tech_.setCurrentTime()`, which plays segments from the current playlist
 
-
-      var onMediaChange = function onMediaChange() {
+      var reset = function reset() {
         _this4.mainSegmentLoader_.resetEverything(function () {
           // Since this is not a typical seek, we avoid the seekTo method which can cause segments
           // from the previously enabled rendition to load before the new playlist has finished loading
@@ -43111,7 +43104,17 @@ var MasterPlaylistController = function (_videojs$EventTarget) {
       }; // don't need to reset audio as it is reset when media changes
 
 
-      this.tech_.one('mediachange', onMediaChange);
+      if (media === this.masterPlaylistLoader_.media()) {
+        // even if the media is the same, we need to force a reset, because the player might be in the
+        // middle of a smooth quality change. For example, a bandwidthupdate event can change the
+        // rendition, but the change takes effect smoothly, a few segments down the line
+        reset();
+        return;
+      } // We need to execute reset() after the new playlist is loaded, as we want to avoid racing
+      // conditions with `this.tech_.setCurrentTime()`, which plays segments from the current playlist
+
+
+      this.tech_.one('mediachange', reset);
       this.masterPlaylistLoader_.media(media);
     }
     /**
