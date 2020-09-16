@@ -27367,13 +27367,15 @@ var PlaylistLoader = function (_EventTarget) {
      * @param {Object=} playlist the parsed media playlist
      * object to switch to
      * @param {Boolean=} is this the last available playlist
+     * @param {Function=} is a callback called when the playlist
+     * is set
      *
      * @return {Playlist} the current loaded media
      */
 
   }, {
     key: 'media',
-    value: function media(playlist, isFinalRendition) {
+    value: function media(playlist, isFinalRendition, onPlaylistLoaded) {
       var _this3 = this; // getter
 
 
@@ -27423,11 +27425,13 @@ var PlaylistLoader = function (_EventTarget) {
           this.trigger('mediachange');
         }
 
+        if (onPlaylistLoaded) onPlaylistLoaded();
         return;
       } // switching to the active playlist is a no-op
 
 
       if (!mediaChange) {
+        if (onPlaylistLoaded) onPlaylistLoaded();
         return;
       }
 
@@ -27437,6 +27441,7 @@ var PlaylistLoader = function (_EventTarget) {
         if (playlist.resolvedUri === this.request.url) {
           // requesting to switch to the same playlist multiple times
           // has no effect after the first
+          if (onPlaylistLoaded) onPlaylistLoaded();
           return;
         }
 
@@ -27472,6 +27477,8 @@ var PlaylistLoader = function (_EventTarget) {
           _this3.trigger('loadedmetadata');
         } else {
           _this3.trigger('mediachange');
+
+          if (onPlaylistLoaded) onPlaylistLoaded();
         }
       });
     }
@@ -43086,8 +43093,10 @@ var MasterPlaylistController = function (_videojs$EventTarget) {
       // in IE and Edge, but seeking in place is sufficient on all other browsers)
       // Edge/IE bug: https://developer.microsoft.com/en-us/microsoft-edge/platform/issues/14600375/
       // Chrome bug: https://bugs.chromium.org/p/chromium/issues/detail?id=651904
+      // We need to execute onPlaylistLoaded() after the new playlist is loaded, as we want to avoid racing
+      // conditions with `this.tech_.setCurrentTime()`, which plays segments from the current playlist
 
-      var reset = function reset() {
+      var onPlaylistLoaded = function onPlaylistLoaded() {
         _this4.mainSegmentLoader_.resetEverything(function () {
           // Since this is not a typical seek, we avoid the seekTo method which can cause segments
           // from the previously enabled rendition to load before the new playlist has finished loading
@@ -43098,20 +43107,12 @@ var MasterPlaylistController = function (_videojs$EventTarget) {
           }
         });
       }; // don't need to reset audio as it is reset when media changes
+      // even if the media is currently the same, we need to set it again, because the playlist loader
+      // might be in the middle of a playlist change. The media() call will take care of cancelling
+      // previous playlist requests
 
 
-      if (media === this.masterPlaylistLoader_.media()) {
-        // even if the media is the same, we need to force a reset, because the player might be in the
-        // middle of a smooth quality change. For example, a bandwidthupdate event can change the
-        // rendition, but the change takes effect smoothly, a few segments down the line
-        reset();
-        return;
-      } // We need to execute reset() after the new playlist is loaded, as we want to avoid racing
-      // conditions with `this.tech_.setCurrentTime()`, which plays segments from the current playlist
-
-
-      this.tech_.one('mediachange', reset);
-      this.masterPlaylistLoader_.media(media);
+      this.masterPlaylistLoader_.media(media, null, onPlaylistLoaded);
     }
     /**
      * Begin playback.
