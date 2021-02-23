@@ -83,7 +83,7 @@
   },
   "dependencies": {
     "@babel/runtime": "^7.9.2",
-    "@videojs/http-streaming": "2.4.2",
+    "@videojs/http-streaming": "github:fetlife/http-streaming#fix-fast-quality-change-racing-conditions-2-4-2-with-dist",
     "@videojs/xhr": "2.5.1",
     "global": "4.3.2",
     "keycode": "^2.2.0",
